@@ -55,3 +55,9 @@ for discussions about the project, and two Matrix rooms for
 
 
 [def]: https://downloads.tuxfamily.org/godotengine/3.2.2/
+## Note on this fork
+
+- Source `.blend` files from upstream were removed from this repo: Godot 4.7 aborts the whole
+  asset import when Blender is not configured. The game uses the exported models, not the
+  `.blend` files. Get them from the upstream repository if you need to edit models.
+- The first time you open the project, let Godot finish importing, then close and reopen once.
