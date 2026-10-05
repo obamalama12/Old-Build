@@ -1,5 +1,6 @@
+.python-version
+*~
+*.kra
+.import/
+.directory
 .godot/
-*.translation
-export_presets.cfg
-build/
-.mono/
