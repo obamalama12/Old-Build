@@ -7,5 +7,6 @@ signal dice_rolled(pid: int, value: int)
 signal pawn_moved(pid: int, space_id: int)
 signal prompt(pid: int, kind: int, options: PackedInt32Array)  # kind: TurnManager.Prompt
 signal stats_changed
+signal stat_delta(pid: int, d_coins: int, d_stars: int)
 signal log_message(text: String)
 signal game_over(order: PackedInt32Array)  # pids, winner first

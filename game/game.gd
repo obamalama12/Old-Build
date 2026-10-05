@@ -14,7 +14,7 @@ var _corrupted := false
 
 
 func _ready() -> void:
-	_build_scenery()
+	add_child(PartyEnvironment.new())
 	board = (load(BOARDS[NetworkManager.board_id]) as GDScript).new()
 	board.name = "Board"
 	add_child(board)
@@ -42,6 +42,7 @@ func _ready() -> void:
 	EventBus.pawn_moved.connect(func(_p, _s): _clear_highlights())
 	EventBus.turn_started.connect(_on_turn_started)
 	EventBus.game_over.connect(_on_game_over)
+	EventBus.stat_delta.connect(_on_stat_delta)
 	NetworkManager.notify_scene_ready()
 
 
@@ -52,48 +53,6 @@ func _spawn_pawn(data: Dictionary) -> Node:
 	pawn.setup(data["pid"])
 	pawn.position = board.space_position(data["space"])
 	return pawn
-
-
-func _build_scenery() -> void:
-	var env := Environment.new()
-	var sky := Sky.new()
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color("3a8dff")
-	sky_mat.sky_horizon_color = Color("bfe6ff")
-	sky_mat.ground_horizon_color = Color("bfe6ff")
-	sky_mat.ground_bottom_color = Color("6fbf5a")
-	sky.sky_material = sky_mat
-	env.sky = sky
-	env.background_mode = Environment.BG_SKY
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.glow_enabled = true
-	env.glow_intensity = 0.4
-	var we := WorldEnvironment.new()
-	we.environment = env
-	add_child(we)
-
-	var sun := DirectionalLight3D.new()
-	sun.light_color = Color("fff2d6")
-	sun.shadow_enabled = true
-	sun.rotation_degrees = Vector3(-55, -35, 0)
-	add_child(sun)
-
-	var cam := Camera3D.new()
-	cam.fov = 40
-	add_child(cam)
-	cam.look_at_from_position(Vector3(0, 22, 17), Vector3.ZERO)
-
-	var ground := MeshInstance3D.new()
-	var plane := PlaneMesh.new()
-	plane.size = Vector2(60, 60)
-	ground.mesh = plane
-	ground.position.y = -0.15
-	var gm := StandardMaterial3D.new()
-	gm.albedo_color = Color("7fd35a")
-	gm.roughness = 1.0
-	ground.material_override = gm
-	add_child(ground)
 
 
 func _on_prompt(pid: int, kind: int, options: PackedInt32Array) -> void:
@@ -121,7 +80,24 @@ func _on_turn_started(pid: int, round_no: int, _max: int) -> void:
 		GameState.coins[0] += 7
 
 
+func _pawn(pid: int) -> Pawn:
+	return _pawns.get_node_or_null("Pawn_%d" % pid) as Pawn
+
+
+func _on_stat_delta(pid: int, d_coins: int, d_stars: int) -> void:
+	var pawn := _pawn(pid)
+	if pawn == null:
+		return
+	if d_stars > 0:
+		pawn.pop_text("+%d STAR" % d_stars, Color("ffd23d"))
+		pawn.celebrate()
+	elif d_coins != 0:
+		pawn.pop_text("%+d" % d_coins, Color("ffd23d") if d_coins > 0 else Color("ff5d6c"))
+
+
 func _on_game_over(order: PackedInt32Array) -> void:
+	if _pawn(order[0]):
+		_pawn(order[0]).celebrate()
 	if _flag("--log"):
 		print("[peer %d] GAME OVER order=%s coins=%s stars=%s" % [NetworkManager.local_id(), order, GameState.coins, GameState.stars])
 	if _flag("--quit-on-end"):

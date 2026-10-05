@@ -53,19 +53,30 @@ func validate() -> PackedStringArray:
 	return out
 
 
+## Dotted trail between linked spaces.
 func _draw_links() -> void:
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("f4efe2")
+	var dot := SphereMesh.new()
+	dot.radius = 0.14
+	dot.height = 0.28
+	dot.radial_segments = 12
+	dot.rings = 6
+	dot.material = Toon.glossy(Color("fff6dc"), 0.5)
+	var xforms: Array[Transform3D] = []
 	for id: int in spaces:
 		var a: Vector3 = spaces[id].position
 		for n in spaces[id].next_ids:
 			var b: Vector3 = spaces[n].position
-			if a.is_equal_approx(b):
-				continue
-			var box := BoxMesh.new()
-			box.size = Vector3(0.25, 0.05, a.distance_to(b))
-			var m := MeshInstance3D.new()
-			m.mesh = box
-			m.material_override = mat
-			add_child(m)
-			m.look_at_from_position((a + b) / 2.0 - Vector3(0, 0.08, 0), b - Vector3(0, 0.08, 0), Vector3.UP)
+			var len := a.distance_to(b)
+			var count := maxi(int(len / 0.9) - 1, 1)
+			for i in count:
+				var t := (i + 1.0) / (count + 1.0)
+				xforms.append(Transform3D(Basis.from_scale(Vector3(1, 0.35, 1)), a.lerp(b, t) + Vector3(0, 0.02, 0)))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = dot
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+	var inst := MultiMeshInstance3D.new()
+	inst.multimesh = mm
+	add_child(inst)

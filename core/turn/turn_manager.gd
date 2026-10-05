@@ -239,6 +239,7 @@ func _net_prompt(pid: int, kind: int, options: PackedInt32Array) -> void:
 @rpc("authority", "call_local", "reliable")
 func _net_delta(pid: int, d_coins: int, d_stars: int, msg: String) -> void:
 	GameState.apply_delta(pid, d_coins, d_stars)
+	EventBus.stat_delta.emit(pid, d_coins, d_stars)
 	if msg != "":
 		EventBus.log_message.emit(msg)
 	EventBus.stats_changed.emit()
