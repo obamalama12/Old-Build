@@ -30,3 +30,7 @@ func _ready() -> void:
 	mat.roughness = 0.8
 	mesh.material_override = mat
 	add_child(mesh)
+
+
+func set_highlight(on: bool) -> void:
+	scale = Vector3.ONE * (1.45 if on else 1.0)

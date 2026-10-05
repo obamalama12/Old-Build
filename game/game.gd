@@ -11,6 +11,8 @@ var _spawner: MultiplayerSpawner
 var _turn_label: Label
 var _dice_label: Label
 var _roll_btn: Button
+var _branch_box: HBoxContainer
+var _highlighted := PackedInt32Array()
 
 
 func _ready() -> void:
@@ -37,6 +39,9 @@ func _ready() -> void:
 	_build_hud()
 	EventBus.turn_started.connect(_on_turn_started)
 	EventBus.dice_rolled.connect(_on_dice_rolled)
+	EventBus.branch_prompt.connect(_on_branch_prompt)
+	EventBus.pawn_moved.connect(func(_p, _s): _clear_branch_ui())
+	EventBus.game_over.connect(_on_game_over)
 	NetworkManager.notify_scene_ready()
 
 
@@ -107,7 +112,8 @@ func _build_hud() -> void:
 	var leave := Button.new()
 	leave.text = "Leave"
 	leave.pressed.connect(func(): NetworkManager.leave())
-	for c in [_turn_label, _dice_label, _roll_btn, leave]:
+	_branch_box = HBoxContainer.new()
+	for c in [_turn_label, _dice_label, _roll_btn, _branch_box, leave]:
 		box.add_child(c)
 
 
@@ -116,8 +122,8 @@ func _on_roll_pressed() -> void:
 	turns.request_roll.rpc_id(1)
 
 
-func _on_turn_started(pid: int) -> void:
-	_turn_label.text = "%s's turn" % GameState.name_of(pid)
+func _on_turn_started(pid: int, round_no: int, max_rounds: int) -> void:
+	_turn_label.text = "Round %d/%d - %s's turn" % [round_no, max_rounds, GameState.name_of(pid)]
 	_roll_btn.disabled = GameState.peer_of(pid) != NetworkManager.local_id()
 	if "--autoroll" in OS.get_cmdline_user_args() and not _roll_btn.disabled:
 		_on_roll_pressed()  # test flag: bots-by-flag for headless smoke tests
@@ -125,6 +131,46 @@ func _on_turn_started(pid: int) -> void:
 
 func _on_dice_rolled(pid: int, value: int) -> void:
 	_dice_label.text = "%s rolled %d" % [GameState.name_of(pid), value]
+	_roll_btn.disabled = true
 	if "--log" in OS.get_cmdline_user_args():
 		print("[peer %d] %s" % [NetworkManager.local_id(), _dice_label.text])
+
+
+func _on_branch_prompt(pid: int, options: PackedInt32Array) -> void:
+	_clear_branch_ui()
+	_highlighted = options
+	for id in options:
+		board.get_space(id).set_highlight(true)
+	if GameState.peer_of(pid) != NetworkManager.local_id():
+		_dice_label.text = "%s is choosing a path..." % GameState.name_of(pid)
+		return
+	for i in options.size():
+		var b := Button.new()
+		b.text = "Path %d" % (i + 1)
+		b.pressed.connect(_on_branch_picked.bind(options[i]))
+		_branch_box.add_child(b)
+	if "--autoroll" in OS.get_cmdline_user_args():
+		_on_branch_picked(options[0])
+
+
+func _on_branch_picked(space_id: int) -> void:
+	for b in _branch_box.get_children():
+		b.queue_free()
+	turns.request_branch.rpc_id(1, space_id)
+
+
+func _clear_branch_ui() -> void:
+	for id in _highlighted:
+		board.get_space(id).set_highlight(false)
+	_highlighted = PackedInt32Array()
+	for b in _branch_box.get_children():
+		b.queue_free()
+
+
+func _on_game_over() -> void:
+	_turn_label.text = "Game over!"
 	_roll_btn.disabled = true
+	if "--log" in OS.get_cmdline_user_args():
+		print("[peer %d] GAME OVER positions=%s" % [NetworkManager.local_id(), GameState.space_of])
+	if "--quit-on-end" in OS.get_cmdline_user_args():
+		get_tree().quit()

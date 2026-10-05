@@ -39,17 +39,6 @@ func space_position(id: int) -> Vector3:
 	return spaces[id].position
 
 
-## Server-side: ids visited when moving `steps` spaces from `from_id`.
-## Phase 2 replaces "first branch" with a player's BRANCH_CHOICE.
-func walk(from_id: int, steps: int) -> PackedInt32Array:
-	var path := PackedInt32Array()
-	var cur := from_id
-	for i in steps:
-		cur = spaces[cur].next_ids[0]
-		path.append(cur)
-	return path
-
-
 func validate() -> PackedStringArray:
 	var out := PackedStringArray()
 	if not spaces.has(start_id):

@@ -47,3 +47,7 @@ func color_of(pid: int) -> Color:
 func is_connected_pid(pid: int) -> bool:
 	var info: Dictionary = NetworkManager.players.get(peers[pid], {})
 	return info.get("connected", false)
+
+
+func is_bot(pid: int) -> bool:
+	return peers[pid] < 0

@@ -19,6 +19,8 @@ var players: Dictionary = {}
 var local_name := "Player"
 var board_id := "meadow"
 var in_game := false
+var max_rounds := 10
+var _next_bot_id := -1
 var ready_peers: Dictionary = {}
 var last_message := ""  # shown by the menu after being kicked back to it
 
@@ -77,6 +79,25 @@ func leave(go_to_menu: bool = true) -> void:
 		get_tree().change_scene_to_file(MAIN_SCENE)
 
 
+## Server-only. Bots get negative ids, which can never match a real RPC sender.
+func add_bot() -> void:
+	if not multiplayer.is_server() or in_game or players.size() >= MAX_PLAYERS:
+		return
+	players[_next_bot_id] = {"name": "Bot %d" % -_next_bot_id, "slot": _free_slot(), "connected": true, "bot": true}
+	_next_bot_id -= 1
+	_broadcast_lobby()
+
+
+func remove_bot() -> void:
+	if not multiplayer.is_server() or in_game:
+		return
+	var bots: Array = players.keys().filter(func(id): return id < 0)
+	if bots.is_empty():
+		return
+	players.erase(bots.min())  # most recently added (most negative)
+	_broadcast_lobby()
+
+
 func start_game() -> void:
 	if not multiplayer.is_server() or in_game or players.size() < MIN_PLAYERS_TO_START:
 		return
@@ -93,7 +114,7 @@ func notify_scene_ready() -> void:
 
 func all_ready() -> bool:
 	for id: int in players:
-		if players[id]["connected"] and not ready_peers.has(id):
+		if players[id]["connected"] and id > 0 and not ready_peers.has(id):
 			return false
 	return true
 
